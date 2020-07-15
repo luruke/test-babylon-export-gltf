@@ -52,7 +52,6 @@
     <button>DOWNLOAD GLTF</button>
 
     <script>
-      var model = "./LENA_C01.zip";
       var canvas = document.getElementById("renderCanvas");
 
       var engine = null;
@@ -84,7 +83,7 @@
           scene
         );
 
-        fetch(model)
+        fetch('https://api.mobitec.epic-sys.io/uploads/product_3dmodels/1634/LENA_C01.zip')
           .then((res) => Promise.resolve(res.blob()))
           .then(JSZip.loadAsync)
           .then((zip) => {
@@ -129,9 +128,11 @@
                     meshes.forEach((mesh) => {
                       mesh.alwaysSelectAsActiveMesh = true;
 
-                      if (mesh.name === "surrounding_box") {
-                        mesh.isVisible = false;
-                        mesh.isPickable = false;
+                      if (mesh.name === "surrounding_box" || mesh.name === 'Plane002' || mesh.name === 'Object001') {
+                        mesh.dispose()
+                        // mesh.isVisible = false;
+                        // mesh.isPickable = false;
+                        // mesh.shouldExportNode = false;
                       }
 
                       if (mesh.material) {
@@ -143,7 +144,7 @@
 
 
                     // Load materials
-                    fetch('./P01.json').then(res => {
+                    fetch('https://api.mobitec.epic-sys.io/uploads/material_color_textures/6/P01.json').then(res => {
                         return Promise.resolve(res.json())
                     }).then(json => {
                         const material = BABYLON.Material.Parse(json, scene)
@@ -159,7 +160,7 @@
                     })
 
 
-                    fetch('./CMOOR.json').then(res => {
+                    fetch('https://api.mobitec.epic-sys.io/uploads/fabric_color_textures/993/CMOOR.json').then(res => {
                         return Promise.resolve(res.json())
                     }).then(json => {
                         const material = BABYLON.Material.Parse(json, scene)
