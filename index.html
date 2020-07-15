@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <title>Babylon.js sample code</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.19/lodash.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.2.1/jszip.js"></script>
+    <!-- Babylon.js -->
+    <script src="https://code.jquery.com/pep/0.4.2/pep.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+    <script src="https://preview.babylonjs.com/ammo.js"></script>
+    <script src="https://preview.babylonjs.com/cannon.js"></script>
+    <script src="https://preview.babylonjs.com/Oimo.js"></script>
+    <script src="https://preview.babylonjs.com/libktx.js"></script>
+    <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+    <script src="https://preview.babylonjs.com/babylon.js"></script>
+    <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+    <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+    <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+    <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+    <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+    <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+    <style>
+      html,
+      body {
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      #renderCanvas {
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+
+      button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="renderCanvas"></canvas>
+    <button>DOWNLOAD GLTF</button>
+
+    <script>
+      var model = "./LENA_C01.zip";
+      var canvas = document.getElementById("renderCanvas");
+
+      var engine = null;
+      var scene = null;
+      var sceneToRender = null;
+      var createDefaultEngine = function () {
+        return new BABYLON.Engine(canvas, true, {
+          preserveDrawingBuffer: true,
+          stencil: true,
+        });
+      };
+      var createScene = function () {
+        var scene = new BABYLON.Scene(engine);
+        // scene.createDefaultCameraOrLight();
+
+        var camera = new BABYLON.FreeCamera(
+          "camera1",
+          new BABYLON.Vector3(0, 50, -100),
+          scene
+        );
+        // Target the camera to scene origin
+        camera.setTarget(BABYLON.Vector3.Zero());
+        // Attach the camera to the canvas
+        camera.attachControl(canvas, false);
+
+        var light = new BABYLON.HemisphericLight(
+          "light1",
+          new BABYLON.Vector3(0, 3, 0),
+          scene
+        );
+
+        fetch(model)
+          .then((res) => Promise.resolve(res.blob()))
+          .then(JSZip.loadAsync)
+          .then((zip) => {
+            zip
+              .file(/\.gltf$/)[0]
+              .async("string")
+              .then((glTF) => {
+                const assets = [];
+                let glTFOutput = glTF;
+
+                zip.forEach((relativePath, file) => {
+                  if (relativePath.match(/\.gltf$/)) {
+                    return;
+                  }
+
+                  assets.push(
+                    file.async("blob").then((blob) => ({
+                      relativePath,
+                      blob: window.URL.createObjectURL(blob),
+                    }))
+                  );
+                });
+
+                return Promise.all(assets).then((assets) => {
+                  // Replace assets relativePath by URL
+                  assets.forEach(({ relativePath, blob }) => {
+                    glTFOutput = glTFOutput.replace(
+                      new RegExp(_.escapeRegExp(relativePath), "g"),
+                      blob
+                    );
+                  });
+
+                  BABYLON.SceneLoader.ImportMeshAsync(
+                    "",
+                    "",
+                    `data:${glTFOutput}`,
+                    scene
+                  ).then(({ meshes }) => {
+
+                    let materialsMeshes = {}
+
+                    meshes.forEach((mesh) => {
+                      mesh.alwaysSelectAsActiveMesh = true;
+
+                      if (mesh.name === "surrounding_box") {
+                        mesh.isVisible = false;
+                        mesh.isPickable = false;
+                      }
+
+                      if (mesh.material) {
+                        const materialId = mesh.material.id
+                        materialsMeshes[materialId] = materialsMeshes[materialId] || []
+                        materialsMeshes[materialId].push(mesh)
+                      }
+                    });
+
+
+                    // Load materials
+                    fetch('./P01.json').then(res => {
+                        return Promise.resolve(res.json())
+                    }).then(json => {
+                        const material = BABYLON.Material.Parse(json, scene)
+                        const mesh = materialsMeshes.c_feet[0];
+
+                        material.backFaceCulling = false;
+                        material.ambientTexture = mesh.material.ambientTexture;
+                        material.occlusionTexture = mesh.material.ambientTexture;
+
+                        material.forceCompilation(mesh, () => {
+                          mesh.material = material;
+                        });
+                    })
+
+
+                    fetch('./CMOOR.json').then(res => {
+                        return Promise.resolve(res.json())
+                    }).then(json => {
+                        const material = BABYLON.Material.Parse(json, scene)
+                        const mesh = materialsMeshes.c_upholstery[0];
+
+                        material.backFaceCulling = false;
+                        material.ambientTexture = mesh.material.ambientTexture;
+                        material.occlusionTexture = mesh.material.ambientTexture;
+
+                        material.forceCompilation(mesh, () => {
+                          mesh.material = material;
+                        });
+                      })
+
+                  });
+
+                  
+
+                  return glTFOutput;
+                });
+              });
+          });
+
+        return scene;
+      };
+      var engine;
+      try {
+        engine = createDefaultEngine();
+      } catch (e) {
+        console.log(
+          "the available createEngine function failed. Creating the default engine instead"
+        );
+        engine = createDefaultEngine();
+      }
+      if (!engine) throw "engine should not be null.";
+      scene = createScene();
+      sceneToRender = scene;
+
+      engine.runRenderLoop(function () {
+        if (sceneToRender) {
+          sceneToRender.render();
+        }
+      });
+
+      // Resize
+      window.addEventListener("resize", function () {
+        engine.resize();
+      });
+
+      document.querySelector('button').addEventListener("click", () => {
+        BABYLON.GLTF2Export.GLBAsync(scene, "file").then((glb) => {
+          glb.downloadFiles();
+        });
+      });
+    </script>
+  </body>
+</html>
