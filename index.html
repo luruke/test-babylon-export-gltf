@@ -122,11 +122,9 @@
                     `data:${glTFOutput}`,
                     scene
                   ).then(({ meshes }) => {
-
                     let materialsMeshes = {}
 
                     meshes.forEach((mesh) => {
-                      mesh.alwaysSelectAsActiveMesh = true;
 
                       if (mesh.name === "surrounding_box" || mesh.name === 'Plane002' || mesh.name === 'Object001') {
                         mesh.dispose()
